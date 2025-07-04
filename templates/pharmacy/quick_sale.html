@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}Quick Sale - {{ app_name }}{% endblock %}
+
+{% block page_title %}Quick Sale{% endblock %}
+
+{% block page_actions %}
+    <div class="btn-group me-2">
+        <a href="{{ url_for('pharmacy_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Pharmacy
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Quick Sale Form -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Process Quick Sale</h5>
+            <span class="badge bg-info">Walk-in Customer</span>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('quick_sale') }}">
+                <div class="mb-3">
+                    <label for="customer_name" class="form-label">Customer Name (Optional)</label>
+                    <input type="text" class="form-control" id="customer_name" name="customer_name" placeholder="Walk-in Customer">
+                </div>
+                
+                <div id="medicineItemsContainer">
+                    <div class="form-field-container border p-3 mb-3 rounded">
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <label for="medicine_id[]" class="form-label required-field">Medicine</label>
+                                <select class="form-select" name="medicine_id[]" required onchange="updateMedicinePrice(this)">
+                                    <option value="" selected disabled>Select medicine</option>
+                                    {% for medicine in medicines %}
+                                    <option value="{{ medicine.id }}" 
+                                            data-price="{{ medicine.selling_price }}" 
+                                            data-min-price="{{ medicine.min_selling_price }}" 
+                                            data-stock="{{ medicine.stock_quantity }}">
+                                        {{ medicine.name }} (Stock: {{ medicine.stock_quantity }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="quantity[]" class="form-label required-field">Quantity</label>
+                                <input type="number" class="form-control" name="quantity[]" min="1" value="1" required onchange="updateMedicineTotal(this)">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="price[]" class="form-label required-field">Price</label>
+                                <input type="number" class="form-control currency-input" name="price[]" step="0.01" min="0" required onchange="updateMedicineTotal(this)">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="button" class="btn btn-danger" onclick="removeFormField(this); recalculateTotal();">
+                                    <i class="fas fa-trash"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-8">
+                                <span class="text-muted medicine-details"></span>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="fw-bold">Total: $<span class="item-total">0.00</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <button type="button" class="btn btn-outline-primary" id="addMedicineBtn">
+                        <i class="fas fa-plus"></i> Add Another Medicine
+                    </button>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> This will process a sale without requiring patient registration.
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h5 class="card-title">Order Summary</h5>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Total Amount:</span>
+                                    <span class="fw-bold">$<span id="grandTotal">0.00</span></span>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-shopping-cart"></i> Complete Sale
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Medicine Selection Template (Hidden) -->
+<div id="medicineSelectTemplate" style="display: none;">
+    <select class="form-select" name="medicine_id[]" required onchange="updateMedicinePrice(this)">
+        <option value="" selected disabled>Select medicine</option>
+        {% for medicine in medicines %}
+        <option value="{{ medicine.id }}" 
+                data-price="{{ medicine.selling_price }}" 
+                data-min-price="{{ medicine.min_selling_price }}" 
+                data-stock="{{ medicine.stock_quantity }}">
+            {{ medicine.name }} (Stock: {{ medicine.stock_quantity }})
+        </option>
+        {% endfor %}
+    </select>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pharmacy.js') }}"></script>
+{% endblock %}

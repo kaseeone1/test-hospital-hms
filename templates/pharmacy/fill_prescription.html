@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+
+{% block title %}Fill Prescription - {{ app_name }}{% endblock %}
+
+{% block page_title %}Fill Prescription{% endblock %}
+
+{% block page_actions %}
+    <div class="btn-group me-2">
+        <a href="{{ url_for('unfilled_prescriptions') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Prescriptions
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Patient Info -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>{{ patient.get_full_name() }}</h5>
+                    <div class="text-muted">
+                        ID: {{ patient.id }} | 
+                        Gender: {{ patient.gender }} | 
+                        {% if patient.date_of_birth %}Age: {{ patient.get_age() }} years{% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="text-muted">
+                        Phone: {{ patient.phone or 'Not recorded' }}
+                    </div>
+                    <div class="text-muted">
+                        Prescription Date: {{ prescription.prescription_date.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Prescription Details -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Prescription Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <strong>Doctor:</strong> {{ prescription.doctor.get_full_name() }}
+                </div>
+                <div class="col-md-6">
+                    <strong>Prescription ID:</strong> {{ prescription.id }}
+                </div>
+            </div>
+            
+            {% if prescription.notes %}
+            <div class="mb-3">
+                <strong>Notes:</strong> {{ prescription.notes }}
+            </div>
+            {% endif %}
+            
+            <form method="post" action="{{ url_for('fill_prescription', prescription_id=prescription.id) }}">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Medicine</th>
+                            <th>Dosage/Instructions</th>
+                            <th>Prescribed Qty</th>
+                            <th>Available Stock</th>
+                            <th>Dispense Qty</th>
+                            <th>Unit Price ($)</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in prescription.items %}
+                        <tr class="prescription-item">
+                            <td>
+                                {{ item.medicine.name }}
+                                <input type="hidden" name="item_id[]" value="{{ item.id }}">
+                            </td>
+                            <td>
+                                {% if item.dosage %}{{ item.dosage }}{% endif %}
+                                {% if item.duration %}<br>for {{ item.duration }}{% endif %}
+                                {% if item.instructions %}<br><small class="text-muted">{{ item.instructions }}</small>{% endif %}
+                            </td>
+                            <td>{{ item.quantity }}</td>
+                            <td class="{% if item.medicine.stock_quantity < item.quantity %}text-danger{% endif %}">
+                                {{ item.medicine.stock_quantity }}
+                            </td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm" name="quantity[]" 
+                                       value="{{ item.quantity }}" min="1" max="{{ item.medicine.stock_quantity }}" 
+                                       required {% if item.medicine.stock_quantity < 1 %}disabled{% endif %}>
+                            </td>
+                            <td>
+                                <input type="number" class="form-control form-control-sm" name="price[]" 
+                                       value="{{ item.medicine.selling_price }}" step="0.01" 
+                                       min="{{ item.medicine.min_selling_price }}" required 
+                                       {% if item.medicine.stock_quantity < 1 %}disabled{% endif %}>
+                                <small class="text-muted">Min: KSh {{ "%.2f"|format(item.medicine.min_selling_price) }}</small>
+                            </td>
+                            <td class="text-end">
+                                KSh <span class="item-total">{{ "%.2f"|format(item.quantity * item.medicine.selling_price) }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="6" class="text-end">Grand Total:</th>
+                            <th class="text-end">KSh <span id="grandTotal">0.00</span></th>
+                        </tr>
+                    </tfoot>
+                </table>
+                
+                <div class="alert {% if prescription.items|selectattr('medicine.stock_quantity', 'lt', 1)|list %}alert-danger{% else %}alert-info{% endif %} mb-4">
+                    {% if prescription.items|selectattr('medicine.stock_quantity', 'lt', 1)|list %}
+                    <i class="fas fa-exclamation-triangle"></i> Some medicines are out of stock. Please restock before filling this prescription.
+                    {% else %}
+                    <i class="fas fa-info-circle"></i> Filling this prescription will reduce the stock quantities accordingly.
+                    {% endif %}
+                </div>
+                
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary" {% if prescription.items|selectattr('medicine.stock_quantity', 'lt', 1)|list %}disabled{% endif %}>
+                        <i class="fas fa-prescription-bottle-alt"></i> Fill Prescription & Generate Receipt
+                    </button>
+                    <a href="{{ url_for('unfilled_prescriptions') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pharmacy.js') }}"></script>
+
+<script>
+    // Initialize on document load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Calculate initial grand total
+        recalculateTotal();
+        
+        // Set up event listeners for all quantity and price inputs
+        const quantityInputs = document.querySelectorAll('input[name="quantity[]"]');
+        const priceInputs = document.querySelectorAll('input[name="price[]"]');
+        
+        quantityInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                updateItemTotal(this);
+            });
+        });
+        
+        priceInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                updateItemTotal(this);
+            });
+        });
+    });
+    
+    // Update item total when quantity or price changes
+    function updateItemTotal(inputElement) {
+        const row = inputElement.closest('tr');
+        const quantityInput = row.querySelector('input[name="quantity[]"]');
+        const priceInput = row.querySelector('input[name="price[]"]');
+        const totalSpan = row.querySelector('.item-total');
+        
+        if (quantityInput && priceInput && totalSpan) {
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const price = parseFloat(priceInput.value) || 0;
+            const total = quantity * price;
+            
+            totalSpan.textContent = total.toFixed(2);
+            
+            // Recalculate grand total
+            recalculateTotal();
+        }
+    }
+    
+    // Calculate grand total
+    function recalculateTotal() {
+        const itemTotals = document.querySelectorAll('.item-total');
+        let grandTotal = 0;
+        
+        itemTotals.forEach(span => {
+            grandTotal += parseFloat(span.textContent) || 0;
+        });
+        
+        document.getElementById('grandTotal').textContent = grandTotal.toFixed(2);
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block title %}Cashier Dashboard - {{ app_name }}{% endblock %}
+
+{% block page_title %}Cashier Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Pending Payments Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Pending Payments</h5>
+        </div>
+        <div class="card-body">
+            {% if visits_with_charges %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Patient</th>
+                                <th>Doctor</th>
+                                <th>Visit Date</th>
+                                <th>Services</th>
+                                <th class="text-end">Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for visit_id, data in visits_with_charges.items() %}
+                            <tr>
+                                <td>
+                                    {{ data.patient.get_full_name() }}
+                                    {% if data.patient.date_of_birth %}
+                                    <small class="text-muted d-block">{{ data.patient.get_age() }} years</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ data.visit.doctor.get_full_name() }}</td>
+                                <td>{{ data.visit.visit_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <ul class="mb-0 small">
+                                        {% for service in data.services %}
+                                        <li>{{ service.service_name }} <span class="text-muted">KSh {{ "%.2f"|format(service.charge_amount) }}</span></li>
+                                        {% endfor %}
+                                    </ul>
+                                </td>
+                                <td class="text-end fw-bold">KSh {{ "%.2f"|format(data.total) }}</td>
+                                <td>
+                                    <a href="{{ url_for('process_service_payment', visit_id=visit_id) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-cash-register"></i> Process Payment
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-clipboard-check fa-3x text-success mb-3"></i>
+                    <p>No pending payments to process.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Recent Receipts -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Recent Receipts</h5>
+        </div>
+        <div class="card-body">
+            {% if recent_receipts %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Receipt #</th>
+                                <th>Date</th>
+                                <th>Patient/Customer</th>
+                                <th>Type</th>
+                                <th class="text-end">Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for receipt in recent_receipts %}
+                            <tr>
+                                <td>{{ receipt.id }}</td>
+                                <td>{{ receipt.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    {% if receipt.patient %}
+                                        {{ receipt.patient.get_full_name() }}
+                                    {% else %}
+                                        Walk-in Customer
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if receipt.is_pharmacy_receipt %}
+                                        <span class="badge bg-info">Pharmacy</span>
+                                    {% else %}
+                                        <span class="badge bg-primary">Services</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">KSh {{ "%.2f"|format(receipt.total_amount) }}</td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('cashier_receipt', receipt_id=receipt.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        <a href="{{ url_for('print_receipt', receipt_id=receipt.id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-print"></i> Print
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                    <p>No recent receipts found.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

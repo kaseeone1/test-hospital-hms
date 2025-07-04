@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Patient Visit Details</h2>
+                <div>
+                    <a href="{{ url_for('view_patient', patient_id=visit.patient_id) }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Patient
+                    </a>
+                    {% if current_user.has_role('can_prescribe') and not visit.is_completed %}
+                        {% if visit.symptoms and visit.diagnosis %}
+                            <a href="{{ url_for('patient_treatment', visit_id=visit.id) }}" class="btn btn-primary">
+                                <i class="fas fa-stethoscope"></i> Continue Treatment
+                            </a>
+                        {% else %}
+                            <a href="{{ url_for('new_patient_visit', patient_id=visit.patient_id) }}" class="btn btn-warning">
+                                <i class="fas fa-clipboard-list"></i> Complete Initial Assessment
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if not visit.symptoms or not visit.diagnosis %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                Initial assessment is not completed. Please complete the assessment before proceeding with treatment.
+            </div>
+            {% endif %}
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4>Visit Information</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Visit Date:</strong> {{ visit.visit_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                            <p><strong>Doctor:</strong> {{ visit.doctor.get_full_name() }}</p>
+                            <p><strong>Status:</strong> 
+                                {% if visit.is_completed %}
+                                    <span class="badge bg-success">Completed</span>
+                                {% else %}
+                                    <span class="badge bg-warning">In Progress</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Patient:</strong> {{ visit.patient.get_full_name() }}</p>
+                            <p><strong>Patient ID:</strong> {{ visit.patient.id }}</p>
+                            <p><strong>Visit ID:</strong> {{ visit.id }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4>Initial Assessment</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Symptoms</h5>
+                            {% if visit.symptoms %}
+                                <p>{{ visit.symptoms }}</p>
+                            {% else %}
+                                <p class="text-muted">No symptoms recorded</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Diagnosis</h5>
+                            {% if visit.diagnosis %}
+                                <p>{{ visit.diagnosis }}</p>
+                            {% else %}
+                                <p class="text-muted">No diagnosis recorded</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4>Treatment</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Prescriptions</h5>
+                            {% if visit.prescriptions %}
+                                <ul class="list-group">
+                                {% for prescription in visit.prescriptions %}
+                                    <li class="list-group-item">
+                                        <strong>Date:</strong> {{ prescription.created_at.strftime('%Y-%m-%d %H:%M') }}<br>
+                                        <strong>Notes:</strong> {{ prescription.notes or 'No notes' }}<br>
+                                        <strong>Items:</strong>
+                                        <ul>
+                                        {% for item in prescription.items %}
+                                            <li>
+                                                {{ item.medicine.name }} - 
+                                                {{ item.dosage }} for {{ item.duration }} days
+                                                {% if item.instructions %}
+                                                    ({{ item.instructions }})
+                                                {% endif %}
+                                            </li>
+                                        {% endfor %}
+                                        </ul>
+                                    </li>
+                                {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted">No prescriptions</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Services</h5>
+                            {% if visit.service_charges %}
+                                <ul class="list-group">
+                                {% for service in visit.service_charges %}
+                                    <li class="list-group-item">
+                                        <strong>{{ service.service_name }}</strong><br>
+                                        {{ service.description or 'No description' }}<br>
+                                        <span class="text-primary">${{ "%.2f"|format(service.charge_amount) }}</span>
+                                    </li>
+                                {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted">No services</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

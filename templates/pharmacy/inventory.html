@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+
+{% block title %}Pharmacy Inventory - {{ app_name }}{% endblock %}
+
+{% block page_title %}Pharmacy Inventory{% endblock %}
+
+{% block page_actions %}
+    <div class="btn-group me-2">
+        <a href="{{ url_for('pharmacy_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Pharmacy
+        </a>
+        {% if current_user.can_manage_inventory() %}
+        <a href="{{ url_for('pharmacy_inventory') }}?add=true" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus"></i> Add Medicine
+        </a>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Search and Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-2">
+                <div class="col-md-8">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" id="medicineSearch" name="search" 
+                            placeholder="Search by name or generic name" value="{{ search }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if add_mode or edit_mode or 'add' in request.args %}
+    <!-- Add/Edit Medicine Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">{{ 'Edit Medicine' if edit_mode else 'Add New Medicine' }}</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% if edit_mode %}{{ url_for('edit_medicine', medicine_id=medicine.id) }}{% else %}{{ url_for('add_medicine') }}{% endif %}">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="name" class="form-label required-field">Medicine Name</label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                            value="{% if edit_mode %}{{ medicine.name }}{% endif %}" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="generic_name" class="form-label">Generic Name</label>
+                        <input type="text" class="form-control" id="generic_name" name="generic_name" 
+                            value="{% if edit_mode %}{{ medicine.generic_name }}{% endif %}">
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="medicine_type" class="form-label">Medicine Type</label>
+                        <select class="form-select" id="medicine_type" name="medicine_type">
+                            <option value="TABLET" {% if edit_mode and medicine.medicine_type.name == 'TABLET' %}selected{% endif %}>Tablet</option>
+                            <option value="CAPSULE" {% if edit_mode and medicine.medicine_type.name == 'CAPSULE' %}selected{% endif %}>Capsule</option>
+                            <option value="SYRUP" {% if edit_mode and medicine.medicine_type.name == 'SYRUP' %}selected{% endif %}>Syrup</option>
+                            <option value="INJECTION" {% if edit_mode and medicine.medicine_type.name == 'INJECTION' %}selected{% endif %}>Injection</option>
+                            <option value="CREAM" {% if edit_mode and medicine.medicine_type.name == 'CREAM' %}selected{% endif %}>Cream</option>
+                            <option value="OINTMENT" {% if edit_mode and medicine.medicine_type.name == 'OINTMENT' %}selected{% endif %}>Ointment</option>
+                            <option value="OTHER" {% if edit_mode and medicine.medicine_type.name == 'OTHER' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="manufacturer" class="form-label">Manufacturer</label>
+                        <input type="text" class="form-control" id="manufacturer" name="manufacturer" 
+                            value="{% if edit_mode %}{{ medicine.manufacturer }}{% endif %}">
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="expiry_date" class="form-label">Expiry Date</label>
+                        <input type="date" class="form-control datepicker" id="expiry_date" name="expiry_date"
+                            value="{% if edit_mode and medicine.expiry_date %}{{ medicine.expiry_date.strftime('%Y-%m-%d') }}{% endif %}">
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="purchase_price" class="form-label required-field">Purchase Price</label>
+                        <div class="input-group">
+                            <span class="input-group-text">KSh</span>
+                            <input type="number" class="form-control currency-input" id="purchase_price" name="purchase_price" 
+                                step="0.01" min="0" value="{% if edit_mode %}{{ medicine.purchase_price }}{% endif %}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="min_selling_price" class="form-label required-field">Minimum Selling Price</label>
+                        <div class="input-group">
+                            <span class="input-group-text">KSh</span>
+                            <input type="number" class="form-control currency-input" id="min_selling_price" name="min_selling_price" 
+                                step="0.01" min="0" value="{% if edit_mode %}{{ medicine.min_selling_price }}{% endif %}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="selling_price" class="form-label required-field">Selling Price</label>
+                        <div class="input-group">
+                            <span class="input-group-text">KSh</span>
+                            <input type="number" class="form-control currency-input" id="selling_price" name="selling_price" 
+                                step="0.01" min="0" value="{% if edit_mode %}{{ medicine.selling_price }}{% endif %}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="stock_quantity" class="form-label required-field">Initial Stock Quantity</label>
+                        <input type="number" class="form-control" id="stock_quantity" name="stock_quantity" 
+                            min="0" value="{% if edit_mode %}{{ medicine.stock_quantity }}{% else %}0{% endif %}" {% if edit_mode and not current_user.is_admin() %}readonly{% endif %} required>
+                        {% if edit_mode and not current_user.is_admin() %}
+                        <small class="text-muted">Only admins can directly edit stock. Use Restock button instead.</small>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-8">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2">{% if edit_mode %}{{ medicine.description }}{% endif %}</textarea>
+                    </div>
+                    
+                    <div class="col-12 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> 
+                            {% if edit_mode %}Update Medicine{% else %}Add Medicine{% endif %}
+                        </button>
+                        <a href="{{ url_for('pharmacy_inventory') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Inventory List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Medicine Inventory</h5>
+        </div>
+        <div class="card-body">
+            {% if medicines %}
+            <div class="table-responsive">
+                <table class="table table-hover" id="medicinesTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Generic Name</th>
+                            <th>Type</th>
+                            <th>Purchase Price</th>
+                            <th>Selling Price</th>
+                            <th>Stock</th>
+                            <th>Expiry Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for medicine in medicines %}
+                        <tr>
+                            <td>{{ medicine.name }}</td>
+                            <td>{{ medicine.generic_name or '-' }}</td>
+                            <td>{{ medicine.medicine_type.value }}</td>
+                            <td>KSh {{ "%.2f"|format(medicine.purchase_price) }}</td>
+                            <td>KSh {{ "%.2f"|format(medicine.selling_price) }}</td>
+                            <td class="{% if medicine.is_low_stock() %}low-stock{% endif %}">{{ medicine.stock_quantity }}</td>
+                            <td>
+                                {% if medicine.expiry_date %}
+                                    {% set days_left = (medicine.expiry_date - today).days if today is defined else 0 %}
+                                    <span class="{% if days_left <= 90 and days_left > 0 %}expiring-soon{% elif days_left <= 0 %}text-danger{% endif %}">
+                                        {{ medicine.expiry_date.strftime('%Y-%m-%d') }}
+                                    </span>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    {% if current_user.can_manage_inventory() %}
+                                    <a href="{{ url_for('edit_medicine', medicine_id=medicine.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-success" 
+                                        onclick="showRestockModal('{{ medicine.id }}', '{{ medicine.name }}', '{{ medicine.stock_quantity }}')">
+                                        <i class="fas fa-plus"></i> Restock
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-pills fa-3x text-muted mb-3"></i>
+                <p>No medicines found in inventory.</p>
+                {% if current_user.can_manage_inventory() %}
+                <a href="{{ url_for('pharmacy_inventory') }}?add=true" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Medicine
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Restock Modal -->
+<div class="modal fade" id="restockModal" tabindex="-1" aria-labelledby="restockModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="restockModalLabel">Restock Medicine</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{{ url_for('restock_medicine', medicine_id=0) }}" id="restockForm">
+                <div class="modal-body">
+                    <p>Current Stock: <span id="current_stock">0</span> units</p>
+                    <div class="mb-3">
+                        <label for="restock_quantity" class="form-label">Quantity to Add</label>
+                        <input type="number" class="form-control" id="restock_quantity" name="quantity" min="1" required>
+                        <input type="hidden" id="restock_medicine_id" name="medicine_id">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Stock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pharmacy.js') }}"></script>
+
+<script>
+    // Update restock form action URL when medicine ID changes
+    document.getElementById('restockForm').addEventListener('submit', function() {
+        const medicineId = document.getElementById('restock_medicine_id').value;
+        this.action = "{{ url_for('restock_medicine', medicine_id=0) }}".replace('0', medicineId);
+    });
+</script>
+{% endblock %}

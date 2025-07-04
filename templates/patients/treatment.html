@@ -1,0 +1,377 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if visit_mode %}New Patient Visit{% else %}Patient Treatment{% endif %} - {{ app_name }}
+{% endblock %}
+
+{% block page_title %}
+    {% if visit_mode %}New Patient Visit{% else %}Patient Treatment{% endif %}
+{% endblock %}
+
+{% block page_actions %}
+    <div class="btn-group me-2">
+        <a href="{{ url_for('view_patient', patient_id=patient.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Patient
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Patient Info Summary -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>{{ patient.get_full_name() }}</h5>
+                    <div class="text-muted">
+                        ID: {{ patient.id }} | 
+                        Gender: {{ patient.gender }} | 
+                        {% if patient.date_of_birth %}Age: {{ patient.get_age() }} years{% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="text-muted">
+                        Phone: {{ patient.phone or 'Not recorded' }}
+                    </div>
+                    <div class="text-muted">
+                        Visit Date: {{ visit.visit_date.strftime('%Y-%m-%d %H:%M') if visit else 'New Visit' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if visit_mode %}
+    <!-- New Visit Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Initial Assessment</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('new_patient_visit', patient_id=patient.id) }}">
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label for="symptoms" class="form-label">Symptoms / Chief Complaint</label>
+                        <textarea class="form-control" id="symptoms" name="symptoms" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="col-md-12">
+                        <label for="diagnosis" class="form-label">Initial Diagnosis</label>
+                        <textarea class="form-control" id="diagnosis" name="diagnosis" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="col-md-12">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="follow_up_date" class="form-label">Follow-up Date (if needed)</label>
+                        <input type="date" class="form-control datepicker default-today" id="follow_up_date" name="follow_up_date">
+                    </div>
+                    
+                    <div class="col-12 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Record Visit & Continue Treatment
+                        </button>
+                        <a href="{{ url_for('view_patient', patient_id=patient.id) }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <!-- Treatment Section -->
+    <div class="row">
+        <!-- Visit Details -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Visit Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Symptoms:</strong>
+                        <p>{{ visit.symptoms or 'Not recorded' }}</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Diagnosis:</strong>
+                        <p>{{ visit.diagnosis or 'Not recorded' }}</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Notes:</strong>
+                        <p>{{ visit.notes or 'None' }}</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Follow-up Date:</strong>
+                        <p>{{ visit.follow_up_date.strftime('%Y-%m-%d') if visit.follow_up_date else 'None scheduled' }}</p>
+                    </div>
+                    
+                    {% if not visit.is_completed %}
+                    <form method="post" action="{{ url_for('patient_treatment', visit_id=visit.id) }}">
+                        <input type="hidden" name="action" value="complete_visit">
+                        <button type="submit" class="btn btn-success w-100 mt-3">
+                            <i class="fas fa-check-circle"></i> Complete Visit
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-success mt-3">
+                        <i class="fas fa-check-circle"></i> This visit has been completed.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Services & Charges -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Services & Charges</h5>
+                    {% if not visit.is_completed and current_user.can_set_prices() %}
+                    <button type="button" class="btn btn-sm btn-primary" id="addServiceBtn">
+                        <i class="fas fa-plus"></i> Add Service
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if services %}
+                    <div class="table-responsive mb-4">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Service</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for service in services %}
+                                <tr>
+                                    <td>{{ service.service_name }}</td>
+                                    <td>{{ service.description or '-' }}</td>
+                                    <td class="text-end">KSh {{ "%.2f"|format(service.charge_amount) }}</td>
+                                    <td>
+                                        {% if service.is_paid %}
+                                        <span class="badge bg-success">Paid</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="2" class="text-end">Total:</th>
+                                    <th class="text-end">KSh {{ "%.2f"|format(services|sum(attribute='charge_amount')) }}</th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% endif %}
+                    
+                    {% if not visit.is_completed and current_user.can_set_prices() %}
+                    <form method="post" action="{{ url_for('patient_treatment', visit_id=visit.id) }}">
+                        <input type="hidden" name="action" value="add_service">
+                        
+                        <div id="serviceChargesContainer">
+                            {% if not services %}
+                            <div class="form-field-container border p-3 mb-3 rounded">
+                                <div class="row g-2">
+                                    <div class="col-md-5">
+                                        <label for="service_name" class="form-label required-field">Service Name</label>
+                                        <input type="text" class="form-control" name="service_name" required>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label for="charge_amount" class="form-label required-field">Charge Amount</label>
+                                        <input type="number" class="form-control currency-input" name="charge_amount" step="0.01" min="0" required>
+                                    </div>
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <button type="button" class="btn btn-danger" onclick="removeFormField(this)">
+                                            <i class="fas fa-trash"></i> Remove
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-12">
+                                        <label for="description" class="form-label">Description</label>
+                                        <textarea class="form-control" name="description" rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if not services %}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Add Service Charge
+                        </button>
+                        {% else %}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Another Service
+                        </button>
+                        {% endif %}
+                    </form>
+                    {% elif not services %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-file-invoice-dollar fa-3x text-muted mb-3"></i>
+                        <p>No services or charges added yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Prescriptions -->
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Prescriptions</h5>
+                    {% if not visit.is_completed and current_user.can_prescribe() %}
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#newPrescriptionForm">
+                        <i class="fas fa-prescription"></i> New Prescription
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if prescriptions %}
+                    <div class="mb-4">
+                        <div class="list-group">
+                            {% for prescription in prescriptions %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6>Prescription #{{ prescription.id }} - {{ prescription.prescription_date.strftime('%Y-%m-%d') }}</h6>
+                                    <span class="badge {% if prescription.is_filled %}bg-success{% else %}bg-warning{% endif %}">
+                                        {{ 'Filled' if prescription.is_filled else 'Pending' }}
+                                    </span>
+                                </div>
+                                
+                                {% if prescription.notes %}
+                                <p class="mb-2"><strong>Notes:</strong> {{ prescription.notes }}</p>
+                                {% endif %}
+                                
+                                {% if prescription.items %}
+                                <strong>Medications:</strong>
+                                <ul class="mb-0">
+                                    {% for item in prescription.items %}
+                                    <li>
+                                        {{ item.medicine.name }} - {{ item.quantity }} units
+                                        {% if item.dosage %}
+                                        <span class="text-muted">({{ item.dosage }})</span>
+                                        {% endif %}
+                                        {% if item.duration %}
+                                        <span class="text-muted">for {{ item.duration }}</span>
+                                        {% endif %}
+                                        {% if item.instructions %}
+                                        <br><small class="text-muted">{{ item.instructions }}</small>
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% else %}
+                                <p class="text-muted mb-0">No medications prescribed.</p>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if not visit.is_completed and current_user.can_prescribe() %}
+                    <div id="newPrescriptionForm" class="collapse {% if not prescriptions %}show{% endif %}">
+                        <form method="post" action="{{ url_for('patient_treatment', visit_id=visit.id) }}">
+                            <input type="hidden" name="action" value="add_prescription">
+                            
+                            <div class="mb-3">
+                                <label for="prescription_notes" class="form-label">Prescription Notes</label>
+                                <textarea class="form-control" id="prescription_notes" name="prescription_notes" rows="2"></textarea>
+                            </div>
+                            
+                            <div id="prescriptionItemsContainer">
+                                <div class="form-field-container border p-3 mb-3 rounded">
+                                    <div class="row g-2">
+                                        <div class="col-md-5">
+                                            <label for="medicine_id[]" class="form-label required-field">Medicine</label>
+                                            <select class="form-select" name="medicine_id[]" required>
+                                                <option value="" selected disabled>Select medicine</option>
+                                                {% for medicine in medicines %}
+                                                <option value="{{ medicine.id }}" data-price="{{ medicine.selling_price }}" data-stock="{{ medicine.stock_quantity }}">
+                                                    {{ medicine.name }} (Stock: {{ medicine.stock_quantity }})
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="quantity[]" class="form-label required-field">Quantity</label>
+                                            <input type="number" class="form-control" name="quantity[]" min="1" value="1" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label for="dosage[]" class="form-label">Dosage</label>
+                                            <input type="text" class="form-control" name="dosage[]" placeholder="e.g., 1-0-1">
+                                        </div>
+                                        <div class="col-md-2 d-flex align-items-end">
+                                            <button type="button" class="btn btn-danger" onclick="removeFormField(this)">
+                                                <i class="fas fa-trash"></i> Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-2">
+                                        <div class="col-md-6">
+                                            <label for="duration[]" class="form-label">Duration</label>
+                                            <input type="text" class="form-control" name="duration[]" placeholder="e.g., 7 days">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="instructions[]" class="form-label">Instructions</label>
+                                            <input type="text" class="form-control" name="instructions[]" placeholder="e.g., After meals">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-outline-secondary" id="addPrescriptionItemBtn">
+                                    <i class="fas fa-plus"></i> Add Another Medicine
+                                </button>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Prescription
+                            </button>
+                        </form>
+                    </div>
+                    {% elif not prescriptions %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-prescription fa-3x text-muted mb-3"></i>
+                        <p>No prescriptions added yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Medicine Selection Template (Hidden) -->
+<div id="medicineSelectTemplate" style="display: none;">
+    <select class="form-select" name="medicine_id[]" required>
+        <option value="" selected disabled>Select medicine</option>
+        {% for medicine in medicines %}
+        <option value="{{ medicine.id }}" data-price="{{ medicine.selling_price }}" data-stock="{{ medicine.stock_quantity }}">
+            {{ medicine.name }} (Stock: {{ medicine.stock_quantity }})
+        </option>
+        {% endfor %}
+    </select>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/patients.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,317 @@
+{% extends 'base.html' %}
+
+{% block title %}Pharmacy Dashboard - {{ app_name }}{% endblock %}
+
+{% block page_title %}Pharmacy Dashboard{% endblock %}
+
+{% block page_actions %}
+    <div class="btn-group me-2">
+        {% if current_user.can_sell_medicine() %}
+        <a href="{{ url_for('quick_sale') }}" class="btn btn-sm btn-primary">
+            <i class="fas fa-shopping-cart"></i> Quick Sale
+        </a>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Quick Navigation Cards -->
+    <div class="row">
+        <!-- Inventory Card -->
+        <div class="col-md-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="icon-wrapper mb-3">
+                        <i class="fas fa-pills fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="card-title">Inventory</h5>
+                    <p class="card-text">Manage medicine inventory and stock levels</p>
+                    <a href="{{ url_for('pharmacy_inventory') }}" class="btn btn-primary">
+                        <i class="fas fa-box"></i> View Inventory
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Prescriptions Card -->
+        <div class="col-md-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="icon-wrapper mb-3">
+                        <i class="fas fa-prescription fa-3x text-success"></i>
+                    </div>
+                    <h5 class="card-title">Prescriptions</h5>
+                    <p class="card-text">Fill patient prescriptions</p>
+                    <a href="{{ url_for('unfilled_prescriptions') }}" class="btn btn-success">
+                        <i class="fas fa-clipboard-list"></i> View Prescriptions
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Sale Card -->
+        <div class="col-md-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="icon-wrapper mb-3">
+                        <i class="fas fa-cash-register fa-3x text-warning"></i>
+                    </div>
+                    <h5 class="card-title">Quick Sale</h5>
+                    <p class="card-text">Process a quick sale without prescription</p>
+                    <a href="{{ url_for('quick_sale') }}" class="btn btn-warning">
+                        <i class="fas fa-shopping-cart"></i> Quick Sale
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sales History Card -->
+        <div class="col-md-3 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="icon-wrapper mb-3">
+                        <i class="fas fa-chart-line fa-3x text-info"></i>
+                    </div>
+                    <h5 class="card-title">Sales History</h5>
+                    <p class="card-text">View medicine sales history</p>
+                    <a href="{{ url_for('pharmacy_sales') }}" class="btn btn-info">
+                        <i class="fas fa-history"></i> View Sales
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Low Stock Alert -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Low Stock Alert</h5>
+                    <span class="badge bg-danger">{{ low_stock|length }} items</span>
+                </div>
+                <div class="card-body">
+                    {% if low_stock %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Medicine</th>
+                                    <th>Current Stock</th>
+                                    <th>Type</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for medicine in low_stock %}
+                                <tr>
+                                    <td>{{ medicine.name }}</td>
+                                    <td class="low-stock">{{ medicine.stock_quantity }}</td>
+                                    <td>{{ medicine.medicine_type.value }}</td>
+                                    <td>
+                                        {% if current_user.can_manage_inventory() %}
+                                        <button type="button" class="btn btn-sm btn-primary" 
+                                            onclick="showRestockModal('{{ medicine.id }}', '{{ medicine.name }}', '{{ medicine.stock_quantity }}')">
+                                            <i class="fas fa-plus"></i> Restock
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <p>No medicines are currently low in stock.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Expiring Soon -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Expiring Soon</h5>
+                    <span class="badge bg-warning">{{ expiring_soon|length }} items</span>
+                </div>
+                <div class="card-body">
+                    {% if expiring_soon %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Medicine</th>
+                                    <th>Expiry Date</th>
+                                    <th>Stock</th>
+                                    <th>Days Left</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for medicine in expiring_soon %}
+                                <tr>
+                                    <td>{{ medicine.name }}</td>
+                                    <td>{{ medicine.expiry_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ medicine.stock_quantity }}</td>
+                                    <td class="expiring-soon">
+                                        {% set days_left = (medicine.expiry_date - today).days %}
+                                        {{ days_left }} days
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <p>No medicines are expiring soon.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Recent Sales -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recent Sales</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_sales %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Medicine</th>
+                                    <th>Quantity</th>
+                                    <th class="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in recent_sales %}
+                                <tr>
+                                    <td>{{ sale.sale_date.strftime('%H:%M') }}</td>
+                                    <td>{{ sale.medicine.name }}</td>
+                                    <td>{{ sale.quantity }}</td>
+                                    <td class="text-end">KSh {{ "%.2f"|format(sale.total_amount) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-end mt-2">
+                        <a href="{{ url_for('pharmacy_sales') }}" class="btn btn-sm btn-outline-primary">
+                            View All Sales
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                        <p>No recent sales.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Unfilled Prescriptions -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Unfilled Prescriptions</h5>
+                    <span class="badge bg-warning">{{ unfilled_prescriptions|length }} pending</span>
+                </div>
+                <div class="card-body">
+                    {% if unfilled_prescriptions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Patient</th>
+                                    <th>Doctor</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for prescription in unfilled_prescriptions %}
+                                <tr>
+                                    <td>{{ prescription.prescription_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ prescription.patient.get_full_name() }}</td>
+                                    <td>{{ prescription.doctor.get_full_name() }}</td>
+                                    <td>
+                                        {% if current_user.can_sell_medicine() %}
+                                        <a href="{{ url_for('fill_prescription', prescription_id=prescription.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-prescription-bottle-alt"></i> Fill
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-end mt-2">
+                        <a href="{{ url_for('unfilled_prescriptions') }}" class="btn btn-sm btn-outline-primary">
+                            View All Prescriptions
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clipboard-check fa-3x text-success mb-3"></i>
+                        <p>No pending prescriptions to fill.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restock Modal -->
+<div class="modal fade" id="restockModal" tabindex="-1" aria-labelledby="restockModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="restockModalLabel">Restock Medicine</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{{ url_for('restock_medicine', medicine_id=0) }}" id="restockForm">
+                <div class="modal-body">
+                    <p>Current Stock: <span id="current_stock">0</span> units</p>
+                    <div class="mb-3">
+                        <label for="restock_quantity" class="form-label">Quantity to Add</label>
+                        <input type="number" class="form-control" id="restock_quantity" name="quantity" min="1" required>
+                        <input type="hidden" id="restock_medicine_id" name="medicine_id">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Stock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pharmacy.js') }}"></script>
+
+<script>
+    // Update restock form action URL when medicine ID changes
+    document.getElementById('restockForm').addEventListener('submit', function() {
+        const medicineId = document.getElementById('restock_medicine_id').value;
+        this.action = "{{ url_for('restock_medicine', medicine_id=0) }}".replace('0', medicineId);
+    });
+</script>
+{% endblock %}

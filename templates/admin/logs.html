@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}Activity Logs - {{ app_name }}{% endblock %}
+
+{% block page_title %}Activity Logs{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Search and Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" action="{{ url_for('admin_logs') }}">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label for="user_id" class="form-label">Filter by User</label>
+                        <select class="form-select" id="user_id" name="user_id">
+                            <option value="">All Users</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}" {% if selected_user and selected_user|int == user.id %}selected{% endif %}>
+                                {{ user.username }} ({{ user.get_full_name() }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="activity_type" class="form-label">Activity Type</label>
+                        <select class="form-select" id="activity_type" name="activity_type">
+                            <option value="">All Activities</option>
+                            {% for activity in activity_types %}
+                            <option value="{{ activity }}" {% if selected_activity == activity %}selected{% endif %}>
+                                {{ activity }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="date_from" class="form-label">From Date</label>
+                        <input type="date" class="form-control datepicker" id="date_from" name="date_from" 
+                            value="{{ date_from }}">
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="date_to" class="form-label">To Date</label>
+                        <input type="date" class="form-control datepicker" id="date_to" name="date_to" 
+                            value="{{ date_to }}">
+                    </div>
+                    
+                    <div class="col-12 mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Filter Logs
+                        </button>
+                        <a href="{{ url_for('admin_logs') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Clear Filters
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Logs List -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">System Activity Logs</h5>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if logs %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>User</th>
+                            <th>Activity Type</th>
+                            <th>Description</th>
+                            <th>IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>{{ log.user.username }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if 'Login' in log.activity_type or 'Logout' in log.activity_type %}bg-primary
+                                    {% elif 'Patient' in log.activity_type %}bg-success
+                                    {% elif 'Medicine' in log.activity_type %}bg-info
+                                    {% elif 'User' in log.activity_type or 'Role' in log.activity_type %}bg-warning
+                                    {% elif 'Error' in log.activity_type or 'Denied' in log.activity_type %}bg-danger
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ log.activity_type }}
+                                </span>
+                            </td>
+                            <td>{{ log.description }}</td>
+                            <td>{{ log.ip_address or 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                <p>No activity logs found.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

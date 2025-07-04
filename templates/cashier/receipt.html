@@ -1,0 +1,286 @@
+    {% if print_view %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Receipt #{{ receipt.id }}</title>
+    <style>
+        @media print {
+            @page {
+                size: A5;
+                margin: 5mm;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+                font-size: 11px;
+            }
+            .receipt-container {
+                max-width: 420px;
+                padding: 0;
+            }
+            .receipt-header, .receipt-footer, table, .mb-4 {
+                page-break-inside: avoid;
+            }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            font-size: 12px;
+        }
+        .receipt-container {
+            max-width: 420px;
+            margin: 0 auto;
+            padding: 0;
+        }
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .receipt-header h3 {
+            color: #2c3e50;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .receipt-footer {
+            text-align: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        th, td {
+            padding: 4px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+        .text-end {
+            text-align: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt-container">
+        <div class="receipt-header">
+            <h3 class="mb-1">Test Hospital</h3>
+            <h4 class="mb-1">RECEIPT</h4>
+            <p class="mb-0">Receipt #: {{ receipt.id }}</p>
+            <p class="mb-0">Date: {{ receipt.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        </div>
+        
+        <div class="mb-4">
+            <div class="row">
+                <div class="col-6">
+                    <strong>Patient/Customer:</strong><br>
+                    {% if patient %}
+                        {{ patient.get_full_name() }}<br>
+                        ID: {{ patient.id }}<br>
+                        {% if patient.phone %}Phone: {{ patient.phone }}<br>{% endif %}
+                    {% else %}
+                        Walk-in Customer<br>
+                    {% endif %}
+                </div>
+                <div class="col-6 text-end">
+                    <strong>Receipt Type:</strong><br>
+                    {{ "Pharmacy" if receipt.is_pharmacy_receipt else "Medical Services" }}<br>
+                    <strong>Cashier:</strong><br>
+                    {{ current_user.get_full_name() }}
+                </div>
+            </div>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th class="text-center">Quantity</th>
+                    <th class="text-end">Unit Price</th>
+                    <th class="text-end">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if receipt.is_pharmacy_receipt and medicine_sales %}
+                    {% for sale in medicine_sales %}
+                    <tr>
+                        <td>{{ sale.medicine.name }}</td>
+                        <td class="text-center">{{ sale.quantity }}</td>
+                        <td class="text-end">KSh {{ "%.2f"|format(sale.selling_price) }}</td>
+                        <td class="text-end">KSh {{ "%.2f"|format(sale.total_amount) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% elif service_charges %}
+                    {% for service in service_charges %}
+                    <tr>
+                        <td>
+                            {{ service.service_name }}
+                            {% if service.description %}<small class="text-muted d-block">{{ service.description }}</small>{% endif %}
+                        </td>
+                        <td class="text-center">1</td>
+                        <td class="text-end">KSh {{ "%.2f"|format(service.charge_amount) }}</td>
+                        <td class="text-end">KSh {{ "%.2f"|format(service.charge_amount) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endif %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="3" class="text-end">Total:</th>
+                    <th class="text-end">KSh {{ "%.2f"|format(receipt.total_amount) }}</th>
+                </tr>
+                {% if payments %}
+                    {% for payment in payments %}
+                    <tr>
+                        <td colspan="3" class="text-end">Paid via {{ payment.payment_method }}:</td>
+                        <td class="text-end">KSh {{ "%.2f"|format(payment.amount) }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr>
+                        <th colspan="3" class="text-end">Balance:</th>
+                        <th class="text-end">KSh {{ "%.2f"|format(receipt.total_amount - payments|sum(attribute='amount')) }}</th>
+                    </tr>
+                {% endif %}
+            </tfoot>
+        </table>
+        
+        <div class="receipt-footer">
+            <p class="mb-1">Thank you for your visit!</p>
+            <p class="mb-0 text-muted small">This is a computer generated receipt and does not require a signature.</p>
+        </div>
+    </div>
+    <div class="footer">
+    </div>
+    <script>
+        window.onload = function() {
+            window.print();
+            setTimeout(function() {
+                window.location.href = "{{ url_for('cashier_receipt', receipt_id=receipt.id) }}";
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
+{% else %}
+{% extends 'base.html' %}
+
+{% block title %}Receipt #{{ receipt.id }} - {{ app_name }}{% endblock %}
+
+{% block page_title %}
+    Receipt #{{ receipt.id }}
+{% endblock %}
+
+{% block page_actions %}
+    <div class="btn-group me-2">
+        <a href="{{ url_for('cashier_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Cashier
+        </a>
+        <a href="{{ url_for('print_receipt', receipt_id=receipt.id) }}" class="btn btn-sm btn-primary">
+            <i class="fas fa-print"></i> Print
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="receipt-container">
+    <div class="receipt-header">
+        <h3 class="mb-1">Test Hospital</h3>
+        <h4 class="mb-1">RECEIPT</h4>
+        <p class="mb-0">Receipt #: {{ receipt.id }}</p>
+        <p class="mb-0">Date: {{ receipt.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+    </div>
+    
+    <div class="mb-4">
+        <div class="row">
+            <div class="col-6">
+                <strong>Patient/Customer:</strong><br>
+                {% if patient %}
+                    {{ patient.get_full_name() }}<br>
+                    ID: {{ patient.id }}<br>
+                    {% if patient.phone %}Phone: {{ patient.phone }}<br>{% endif %}
+                {% else %}
+                    Walk-in Customer<br>
+                {% endif %}
+            </div>
+            <div class="col-6 text-end">
+                <strong>Receipt Type:</strong><br>
+                {{ "Pharmacy" if receipt.is_pharmacy_receipt else "Medical Services" }}<br>
+                <strong>Cashier:</strong><br>
+                {{ current_user.get_full_name() }}
+            </div>
+        </div>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th class="text-center">Quantity</th>
+                <th class="text-end">Unit Price</th>
+                <th class="text-end">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if receipt.is_pharmacy_receipt and medicine_sales %}
+                {% for sale in medicine_sales %}
+                <tr>
+                    <td>{{ sale.medicine.name }}</td>
+                    <td class="text-center">{{ sale.quantity }}</td>
+                    <td class="text-end">KSh {{ "%.2f"|format(sale.selling_price) }}</td>
+                    <td class="text-end">KSh {{ "%.2f"|format(sale.total_amount) }}</td>
+                </tr>
+                {% endfor %}
+            {% elif service_charges %}
+                {% for service in service_charges %}
+                <tr>
+                    <td>
+                        {{ service.service_name }}
+                        {% if service.description %}<small class="text-muted d-block">{{ service.description }}</small>{% endif %}
+                    </td>
+                    <td class="text-center">1</td>
+                    <td class="text-end">KSh {{ "%.2f"|format(service.charge_amount) }}</td>
+                    <td class="text-end">KSh {{ "%.2f"|format(service.charge_amount) }}</td>
+                </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="3" class="text-end">Total:</th>
+                <th class="text-end">KSh {{ "%.2f"|format(receipt.total_amount) }}</th>
+            </tr>
+            {% if payments %}
+                {% for payment in payments %}
+                <tr>
+                    <td colspan="3" class="text-end">Paid via {{ payment.payment_method }}:</td>
+                    <td class="text-end">KSh {{ "%.2f"|format(payment.amount) }}</td>
+                </tr>
+                {% endfor %}
+                <tr>
+                    <th colspan="3" class="text-end">Balance:</th>
+                    <th class="text-end">KSh {{ "%.2f"|format(receipt.total_amount - payments|sum(attribute='amount')) }}</th>
+                </tr>
+            {% endif %}
+        </tfoot>
+    </table>
+    
+    <div class="receipt-footer">
+        <p class="mb-1">Thank you for your visit!</p>
+        <p class="mb-0 text-muted small">This is a computer generated receipt and does not require a signature.</p>
+    </div>
+</div>
+<div class="footer">
+</div>
+{% endblock %}
+{% endif %}

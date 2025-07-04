@@ -1,0 +1,304 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - {{ app_name }}{% endblock %}
+
+{% block page_title %}
+    Dashboard
+    <span class="ms-2 badge bg-secondary">{{ current_user.role.name }}</span>
+{% endblock %}
+
+{% block page_actions %}
+    <div class="btn-group me-2">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </a>
+    </div>
+    <span class="text-muted" id="dashboardClock"></span>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Welcome & Status -->
+    <div class="card mb-4 bg-primary bg-opacity-10">
+        <div class="card-body">
+            <h4>Welcome, {{ current_user.get_full_name() }}!</h4>
+            <p class="mb-0">
+                {{ "You are currently checked in and working." if is_checked_in else "You are not checked in. Check in to start your work day." }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row">
+        <!-- Total Patients -->
+        <div class="col-md-3 mb-4">
+            <div class="card dashboard-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted card-title">Total Patients</div>
+                            <div class="card-value counter-value" data-target="{{ total_patients }}">{{ total_patients }}</div>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 p-3 rounded">
+                            <i class="fas fa-users fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Today's Visits -->
+        <div class="col-md-3 mb-4">
+            <div class="card dashboard-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted card-title">Today's Visits</div>
+                            <div class="card-value counter-value" data-target="{{ today_visits }}">{{ today_visits }}</div>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded">
+                            <i class="fas fa-calendar-check fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Low Stock Alert -->
+        <div class="col-md-3 mb-4">
+            <div class="card dashboard-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted card-title">Low Stock Items</div>
+                            <div class="card-value counter-value" data-target="{{ low_stock }}">{{ low_stock }}</div>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 p-3 rounded">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Today's Revenue -->
+        <div class="col-md-3 mb-4">
+            <div class="card dashboard-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted card-title">Today's Revenue</div>
+                            <div class="card-value">KSh {{ "%.2f"|format(today_revenue) }}</div>
+                        </div>
+                        <div class="bg-info bg-opacity-10 p-3 rounded">
+                            <i class="fas fa-dollar-sign fa-2x text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Patients & Activities -->
+        <div class="col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Recent Patients</h5>
+                    {% if current_user.can_add_patients() %}
+                    <a href="{{ url_for('register_patient') }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus"></i> New Patient
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if recent_patients %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Patient</th>
+                                    <th>Doctor</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for visit in recent_patients %}
+                                <tr>
+                                    <td>{{ visit.visit_date.strftime('%H:%M') }}</td>
+                                    <td>
+                                        <a href="{{ url_for('view_patient', patient_id=visit.patient_id) }}">
+                                            {{ visit.patient.get_full_name() }}
+                                        </a>
+                                    </td>
+                                    <td>{{ visit.doctor.get_full_name() }}</td>
+                                    <td>
+                                        {% if visit.is_completed %}
+                                        <span class="badge bg-success">Completed</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">In Progress</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if current_user.can_prescribe() and not visit.is_completed %}
+                                        <a href="{{ url_for('patient_treatment', visit_id=visit.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-stethoscope"></i> Treat
+                                        </a>
+                                        {% else %}
+                                        <a href="{{ url_for('view_patient', patient_id=visit.patient_id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-day fa-3x text-muted mb-3"></i>
+                        <p>No patient visits today yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Activities -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recent Activities</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_activities %}
+                    <div class="list-group list-group-flush">
+                        {% for activity in recent_activities %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ activity.activity_type }}</h6>
+                                <small class="text-muted">{{ activity.timestamp.strftime('%H:%M') }}</small>
+                            </div>
+                            <p class="mb-1 small">{{ activity.description }}</p>
+                            <small class="text-muted">{{ activity.user.username }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <p>No recent activities.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Doctor's Patients (For Doctors) -->
+        {% if current_user.role.can_prescribe and doctor_patients %}
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Your Patient Queue</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Queue #</th>
+                                    <th>Time</th>
+                                    <th>Patient</th>
+                                    <th>Symptoms</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for visit in doctor_patients %}
+                                <tr class="{% if visit.is_completed %}table-success{% endif %}">
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ visit.visit_date.strftime('%H:%M') }}</td>
+                                    <td>
+                                        <a href="{{ url_for('view_patient', patient_id=visit.patient_id) }}">
+                                            {{ visit.patient.get_full_name() }}
+                                        </a>
+                                        {% if visit.patient.date_of_birth %}
+                                        <small class="text-muted d-block">{{ visit.patient.get_age() }} years</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ visit.symptoms or 'Not recorded' }}</td>
+                                    <td>
+                                        {% if visit.is_completed %}
+                                        <span class="badge bg-success">Completed</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Waiting</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not visit.is_completed %}
+                                        <a href="{{ url_for('patient_treatment', visit_id=visit.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-stethoscope"></i> Treat Patient
+                                        </a>
+                                        {% else %}
+                                        <a href="{{ url_for('view_patient', patient_id=visit.patient_id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-eye"></i> View Details
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Staff Currently Working -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Staff Currently Working</h5>
+                </div>
+                <div class="card-body">
+                    {% if staff_checked_in %}
+                    <div class="row">
+                        {% for staff in staff_checked_in %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-dark bg-opacity-10">
+                                <div class="card-body p-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="status-indicator status-active me-2"></div>
+                                        <div>
+                                            <h6 class="mb-0">{{ staff.get_full_name() }}</h6>
+                                            <small class="text-muted">{{ staff.role.name }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-user-clock fa-3x text-muted mb-3"></i>
+                        <p>No staff members are currently checked in.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Patients - {{ app_name }}{% endblock %}
+
+{% block page_title %}Patients Management{% endblock %}
+
+{% block page_actions %}
+    {% if current_user.can_add_patients() %}
+    <div class="btn-group me-2">
+        <a href="{{ url_for('register_patient') }}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus"></i> New Patient
+        </a>
+    </div>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Search and Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" action="{{ url_for('patients_list') }}">
+                <div class="row g-2">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" id="patientSearch" name="search" 
+                                placeholder="Search by name or phone number" value="{{ search }}">
+                            <button type="submit" class="btn btn-primary">Search</button>
+                            {% if search %}
+                            <a href="{{ url_for('patients_list') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Patients List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Patients Directory</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if patients %}
+            <div class="table-responsive">
+                <table class="table table-hover" id="patientsTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Patient Name</th>
+                            <th>Gender</th>
+                            <th>Phone</th>
+                            <th>Age</th>
+                            <th>Registration Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for patient in patients %}
+                        <tr class="patient-row">
+                            <td>{{ patient.id }}</td>
+                            <td class="patient-name">{{ patient.get_full_name() }}</td>
+                            <td>{{ patient.gender }}</td>
+                            <td class="patient-phone">{{ patient.phone or '-' }}</td>
+                            <td>{{ patient.get_age() or '-' }}</td>
+                            <td>{{ patient.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('view_patient', patient_id=patient.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    
+                                    {% if current_user.can_edit_patients() %}
+                                    <a href="{{ url_for('edit_patient', patient_id=patient.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                    {% endif %}
+                                    
+                                    {% if current_user.can_prescribe() %}
+                                    <a href="{{ url_for('new_patient_visit', patient_id=patient.id) }}" class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-stethoscope"></i> New Visit
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-user-injured fa-3x text-muted mb-3"></i>
+                <p>No patients found.</p>
+                {% if current_user.can_add_patients() %}
+                <a href="{{ url_for('register_patient') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Register New Patient
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/patients.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if edit_mode %}Edit Patient{% else %}Register New Patient{% endif %} - {{ app_name }}
+{% endblock %}
+
+{% block page_title %}
+    {% if edit_mode %}Edit Patient{% else %}Register New Patient{% endif %}
+{% endblock %}
+
+{% block page_actions %}
+    <div class="btn-group me-2">
+        <a href="{{ url_for('patients_list') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Patients
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="card">
+        <div class="card-body">
+            <form method="post" action="{% if edit_mode %}{{ url_for('edit_patient', patient_id=patient.id) }}{% else %}{{ url_for('register_patient') }}{% endif %}">
+                <div class="row g-3">
+                    <!-- Personal Information -->
+                    <div class="col-12">
+                        <h5 class="border-bottom pb-2">Personal Information</h5>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="first_name" class="form-label required-field">First Name</label>
+                        <input type="text" class="form-control" id="first_name" name="first_name" 
+                            value="{% if edit_mode %}{{ patient.first_name }}{% endif %}" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="last_name" class="form-label required-field">Last Name</label>
+                        <input type="text" class="form-control" id="last_name" name="last_name" 
+                            value="{% if edit_mode %}{{ patient.last_name }}{% endif %}" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="gender" class="form-label required-field">Gender</label>
+                        <select class="form-select" id="gender" name="gender" required>
+                            <option value="" disabled {% if not edit_mode %}selected{% endif %}>Select gender</option>
+                            <option value="Male" {% if edit_mode and patient.gender == 'Male' %}selected{% endif %}>Male</option>
+                            <option value="Female" {% if edit_mode and patient.gender == 'Female' %}selected{% endif %}>Female</option>
+                            <option value="Other" {% if edit_mode and patient.gender == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="date_of_birth" class="form-label">Date of Birth</label>
+                        <div class="input-group">
+                            <input type="date" class="form-control datepicker" id="date_of_birth" name="date_of_birth"
+                                value="{% if edit_mode and patient.date_of_birth %}{{ patient.date_of_birth.strftime('%Y-%m-%d') }}{% endif %}">
+                            <span class="input-group-text" id="calculated_age"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Contact Information -->
+                    <div class="col-12 mt-4">
+                        <h5 class="border-bottom pb-2">Contact Information</h5>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="phone" class="form-label">Phone</label>
+                        <input type="tel" class="form-control" id="phone" name="phone" 
+                            value="{% if edit_mode %}{{ patient.phone }}{% endif %}">
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                            value="{% if edit_mode %}{{ patient.email }}{% endif %}">
+                    </div>
+                    
+                    <div class="col-md-12">
+                        <label for="address" class="form-label">Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="2">{% if edit_mode %}{{ patient.address }}{% endif %}</textarea>
+                    </div>
+                    
+                    <!-- Next of Kin Information -->
+                    <div class="col-12 mt-4">
+                        <h5 class="border-bottom pb-2">Next of Kin Information</h5>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="next_of_kin_name" class="form-label">Next of Kin Name</label>
+                        <input type="text" class="form-control" id="next_of_kin_name" name="next_of_kin_name" 
+                            value="{% if edit_mode %}{{ patient.next_of_kin_name }}{% endif %}">
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="next_of_kin_relationship" class="form-label">Relationship</label>
+                        <select class="form-select" id="next_of_kin_relationship" name="next_of_kin_relationship">
+                            <option value="" {% if not edit_mode or not patient.next_of_kin_relationship %}selected{% endif %}>Select relationship</option>
+                            <option value="Spouse" {% if edit_mode and patient.next_of_kin_relationship == 'Spouse' %}selected{% endif %}>Spouse</option>
+                            <option value="Parent" {% if edit_mode and patient.next_of_kin_relationship == 'Parent' %}selected{% endif %}>Parent</option>
+                            <option value="Child" {% if edit_mode and patient.next_of_kin_relationship == 'Child' %}selected{% endif %}>Child</option>
+                            <option value="Sibling" {% if edit_mode and patient.next_of_kin_relationship == 'Sibling' %}selected{% endif %}>Sibling</option>
+                            <option value="Other" {% if edit_mode and patient.next_of_kin_relationship == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="next_of_kin_phone" class="form-label">Next of Kin Phone</label>
+                        <input type="tel" class="form-control" id="next_of_kin_phone" name="next_of_kin_phone" 
+                            value="{% if edit_mode %}{{ patient.next_of_kin_phone }}{% endif %}">
+                    </div>
+                    
+                    <div class="col-md-12">
+                        <label for="next_of_kin_address" class="form-label">Next of Kin Address</label>
+                        <textarea class="form-control" id="next_of_kin_address" name="next_of_kin_address" rows="2">{% if edit_mode %}{{ patient.next_of_kin_address }}{% endif %}</textarea>
+                    </div>
+                    
+                    <!-- Doctor Assignment -->
+                    <div class="col-md-12 mt-4">
+                        <h5 class="border-bottom pb-2">Doctor Assignment</h5>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="doctor_id" class="form-label">Assign Doctor</label>
+                        <select class="form-select" id="doctor_id" name="doctor_id">
+                            <option value="" {% if not edit_mode %}selected{% endif %}>Select a doctor</option>
+                            {% for doctor in doctors %}
+                                <option value="{{ doctor.id }}" {% if edit_mode and patient.doctor_id == doctor.id %}selected{% endif %}>{{ doctor.get_full_name() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <div class="col-12 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> 
+                            {% if edit_mode %}Update Patient{% else %}Register Patient{% endif %}
+                        </button>
+                        <a href="{% if edit_mode %}{{ url_for('view_patient', patient_id=patient.id) }}{% else %}{{ url_for('patients_list') }}{% endif %}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/patients.js') }}"></script>
+{% endblock %}
