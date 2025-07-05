@@ -13,15 +13,15 @@ def log_activity(activity_type, description=None):
         if current_user.is_authenticated:
             log_entry = ActivityLog(
                 user_id=current_user.id,
-                activity_type=activity_type,
-                description=description,
-                ip_address=request.remote_addr
-            )
+            activity_type=activity_type,
+            description=description,
+            ip_address=request.remote_addr
+        )
             db.session.add(log_entry)
-            db.session.commit()
+        db.session.commit()
     except Exception as e:
         logging.error(f"Error logging activity: {str(e)}")
-
+    
 def require_role(*permissions):
     """Decorator to require specific role permissions for accessing routes."""
     def decorator(f):
@@ -63,67 +63,67 @@ def generate_report_pdf(report_type, data):
         
         if use_weasyprint:
             # Use WeasyPrint for better HTML to PDF conversion
-            css_content = '''
-            @page {
-                size: A4;
-                margin: 2cm;
-            }
-            body {
-                font-family: Arial, sans-serif;
-                line-height: 1.6;
-                color: #333;
-            }
-            h1 {
-                color: #2c3e50;
-                border-bottom: 2px solid #eee;
-                padding-bottom: 10px;
-            }
-            h2 {
-                color: #34495e;
-                margin-top: 20px;
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 20px 0;
-            }
-            th, td {
-                padding: 8px;
-                text-align: left;
-                border-bottom: 1px solid #ddd;
-            }
-            th {
-                background-color: #f8f9fa;
-                font-weight: bold;
-            }
-            tfoot th {
-                background-color: #e9ecef;
-            }
-            .summary {
-                background-color: #f8f9fa;
-                padding: 15px;
-                border-radius: 5px;
-                margin: 20px 0;
-            }
-            .footer {
-                margin-top: 40px;
-                padding-top: 20px;
-                border-top: 1px solid #eee;
-                font-size: 0.9em;
-                color: #666;
-            }
-            '''
-            
-            html = HTML(string=html_content)
-            css = CSS(string=css_content)
-            
-            # Generate PDF in memory
+        css_content = '''
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        tfoot th {
+            background-color: #e9ecef;
+        }
+        .summary {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 0.9em;
+            color: #666;
+        }
+        '''
+        
+        html = HTML(string=html_content)
+        css = CSS(string=css_content)
+        
+        # Generate PDF in memory
             from io import BytesIO
-            pdf_bytes = BytesIO()
-            html.write_pdf(pdf_bytes, stylesheets=[css])
-            pdf_bytes.seek(0)
-            
-            return pdf_bytes
+        pdf_bytes = BytesIO()
+        html.write_pdf(pdf_bytes, stylesheets=[css])
+        pdf_bytes.seek(0)
+        
+        return pdf_bytes
         else:
             # Fallback to ReportLab for basic PDF generation
             return generate_reportlab_pdf(report_type, data)
@@ -496,4 +496,4 @@ def generate_inventory_report_html(data):
     </body>
     </html>
     '''
-    return html 
+    return html
