@@ -10,43 +10,48 @@ from security import security_manager, log_security_event
 logging.basicConfig(level=logging.DEBUG)
 
 def create_app():
-# Create the Flask application
-app = Flask(__name__)
+    # Create the Flask application
+    app = Flask(__name__)
 
-# Configure the application
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///test_hospital_fresh.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.secret_key = os.environ.get("SESSION_SECRET", "test_hospital_secret_key")
+    # Configure the application
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/bluwik_hms.db')
+    
+    # Handle Render's PostgreSQL URL format
+    if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
+    
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.secret_key = os.environ.get("SECRET_KEY", "test_hospital_secret_key")
 
-# Configure the login manager
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-login_manager.login_message = 'Please log in to access this page.'
-login_manager.login_message_category = 'warning'
+    # Configure the login manager
+    login_manager.init_app(app)
+    login_manager.login_view = 'login'
+    login_manager.login_message = 'Please log in to access this page.'
+    login_manager.login_message_category = 'warning'
 
-# Apply middleware to handle proxy servers
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    # Apply middleware to handle proxy servers
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
     # Initialize security manager
     security_manager.init_app(app)
 
-# Initialize the database and migrations
-db.init_app(app)
-migrate.init_app(app, db)
+    # Initialize the database and migrations
+    db.init_app(app)
+    migrate.init_app(app, db)
 
-# Register before_request handler to add timestamp to g
-@app.before_request
-def before_request():
-    g.request_start_time = datetime.now()
+    # Register before_request handler to add timestamp to g
+    @app.before_request
+    def before_request():
+        g.request_start_time = datetime.now()
 
     return app
 
 # Create the app instance
 app = create_app()
 
-    # Import models
-    from models import User, Patient, PatientVisit, Prescription, Medicine, MedicineSale
-    from models import ServiceCharge, Payment, Receipt, ActivityLog, Attendance
+# Import models
+from models import User, Patient, PatientVisit, Prescription, Medicine, MedicineSale
+from models import ServiceCharge, Payment, Receipt, ActivityLog, Attendance
 
 # Import routes after app is initialized
 from routes import *
@@ -112,4 +117,4 @@ with app.app_context():
 if __name__ == '__main__':
     # Disable debug mode in production for security
     debug_mode = os.environ.get('DEBUG', 'False').lower() == 'true'
-    app.run(debug=debug_mode, host='0.0.0.0', port=5000)
+    app.run(debug=debug_mode, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

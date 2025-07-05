@@ -1,7 +1,8 @@
 services:
   - type: web
-    name: bluwik-hms
+    name: test-hospital-hms
     env: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
@@ -9,14 +10,12 @@ services:
         value: 3.12.0
       - key: FLASK_ENV
         value: production
-      - key: DATABASE_URL
-        fromDatabase:
-          name: bluwik-hms-db
-          property: connectionString
       - key: SECRET_KEY
         generateValue: true
-      - key: FLASK_APP
-        value: app.py
+      - key: DATABASE_URL
+        value: sqlite:///instance/bluwik_hms.db
+    healthCheckPath: /
+    autoDeploy: true
 
 databases:
   - name: bluwik-hms-db
