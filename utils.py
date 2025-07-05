@@ -135,12 +135,17 @@ def generate_report_pdf(report_type, data):
 def generate_reportlab_pdf(report_type, data):
     """Generate PDF using ReportLab as fallback."""
     try:
-        from reportlab.lib.pagesizes import letter, A4
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import inch
-        from reportlab.lib import colors
-        from io import BytesIO
+        # Try to import reportlab, but don't fail if it's not available
+        try:
+            from reportlab.lib.pagesizes import letter, A4
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
+            from io import BytesIO
+        except ImportError:
+            logging.warning("ReportLab not available, PDF generation disabled")
+            return None
         
         # Create PDF in memory
         buffer = BytesIO()
