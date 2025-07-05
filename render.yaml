@@ -13,11 +13,24 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///instance/bluwik_hms.db
+        fromDatabase:
+          name: bluwik-hms-db
+          property: connectionString
+      - key: DEBUG
+        value: false
+      - key: PORT
+        value: 10000
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: FLASK_APP
+        value: app.py
+      - key: FLASK_DEBUG
+        value: 0
     healthCheckPath: /
     autoDeploy: true
 
 databases:
   - name: bluwik-hms-db
     databaseName: bluwik_hms
-    user: bluwik_hms_user 
+    user: bluwik_hms_user
+    plan: free 
