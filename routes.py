@@ -95,8 +95,8 @@ def login():
             is_locked = security_manager.record_failed_login(username, client_ip)
             if is_locked:
                 flash('Account has been locked due to multiple failed attempts. Please try again later.', 'danger')
-            else:
-                flash('Invalid username or password', 'danger')
+        else:
+            flash('Invalid username or password', 'danger')
             
             log_security_event('LOGIN_FAILED', f'Failed login attempt: {username}', None, client_ip)
     
